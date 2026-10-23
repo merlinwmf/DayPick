@@ -1,0 +1,32 @@
+{
+  "selected_groups": [
+    "\u4eca\u5929",
+    "\u6ce2\u6bb5"
+  ],
+  "logics": {
+    "logic1": {
+      "name": "Logic 1: Today Big Gain",
+      "enabled": true
+    },
+    "logic2": {
+      "name": "Logic 2: Recent Breakout Pullback",
+      "enabled": false
+    },
+    "logic3": {
+      "name": "Logic 3: EMA20/250 Cross, Stabilize",
+      "enabled": false
+    },
+    "logic4": {
+      "name": "Logic 4: Range Bottom",
+      "enabled": true
+    },
+    "logic5": {
+      "name": "Logic 5: Range Breakout",
+      "enabled": false
+    },
+    "logic6": {
+      "name": "Logic 6: Crash Stabilization",
+      "enabled": false
+    }
+  }
+}

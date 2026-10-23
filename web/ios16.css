@@ -1,0 +1,162 @@
+/*
+  iOS16-style web kit: shared CSS for pywebview/HTML+CSS+JS desktop apps
+  in this workspace. Extracted from DayPick's UI after migrating it from
+  Tkinter to pywebview for real browser-quality rendering (anti-aliasing,
+  shadows, gradients) that Tkinter's Canvas can't match.
+
+  Usage: <link rel="stylesheet" href="ios16.css"> (copy this file next to
+  your app's HTML, or reference it directly if your packaging setup can
+  reach outside the app folder - PyInstaller's `datas` needs an explicit
+  entry either way since it won't bundle non-Python assets on its own).
+
+  Colors are CSS custom properties on :root - override any of them in your
+  own stylesheet (loaded after this one) to retheme without editing this
+  file.
+
+  Canonical source: E:\Coding\Stock\UIDesign\ios16_web_kit\ios16.css - this
+  is a copy (PyInstaller needs assets inside the app's own tree); keep them in
+  sync by hand if you tune the shared kit.
+*/
+
+:root {
+  --color-bg: #F2F2F7;               /* page background (iOS systemGroupedBackground) */
+  --color-card: #FFFFFF;             /* card containers */
+  --color-label: #1C1C1E;            /* primary text */
+  --color-secondary-label: #8E8E93;  /* captions, secondary text */
+  --color-tertiary-label: #C7C7CC;   /* timestamps, disabled hints */
+  --color-separator: #E5E5EA;        /* row dividers */
+
+  --color-blue: #007AFF;
+  --color-green: #34C759;
+  --color-green-light: #34D35F;
+  --color-green-dark: #2FBE55;
+  --color-red: #FF3B30;
+  --color-toggle-off: #E9E9EA;
+
+  /* six category colors, used in order for badges/tags across a set of items */
+  --color-cat-0: #FF9500;
+  --color-cat-1: #AF52DE;
+  --color-cat-2: #007AFF;
+  --color-cat-3: #32ADE6;
+  --color-cat-4: #FF2D55;
+  --color-cat-5: #5856D6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ---------------------------------------------------------------- layout */
+.page { width: 100%; max-width: 650px; padding-bottom: 24px; }
+.header { padding: 24px 20px 14px 20px; }
+.title { font-size: 30px; font-weight: 700; color: var(--color-label); letter-spacing: -0.4px; }
+.subtitle { font-size: 14px; color: var(--color-secondary-label); margin-top: 5px; }
+.section-label {
+  font-size: 12px; font-weight: 600; color: var(--color-secondary-label);
+  letter-spacing: 0.6px; margin: 0 0 6px 32px; text-transform: uppercase;
+}
+.caption { font-size: 12px; color: var(--color-secondary-label); margin: 6px 0 0 32px; }
+.caption.dim { color: var(--color-tertiary-label); }
+.status { font-size: 13px; color: var(--color-secondary-label); margin: 14px 20px; min-height: 16px; }
+.empty-note { padding: 14px; font-size: 13px; color: var(--color-tertiary-label); text-align: center; }
+
+/* ------------------------------------------------------------------ card */
+.card {
+  background: var(--color-card); border-radius: 14px; margin: 0 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 10px rgba(0,0,0,0.04);
+}
+
+/* ------------------------------------------------------------- chip rows */
+/* A wrapping row of pill-shaped filter chips - single or multi-select
+   depending on your click handler. Put `.chips` inside a `.card`. */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 12px 10px 12px; min-height: 30px; }
+.chip {
+  height: 30px; padding: 0 14px; border-radius: 15px; font-size: 14px;
+  display: flex; align-items: center; gap: 5px; cursor: pointer;
+  background: var(--color-toggle-off); color: var(--color-label); font-weight: 500;
+  transition: background 0.15s;
+}
+.chip.selected { background: var(--color-blue); color: #FFFFFF; font-weight: 600; }
+.chip svg { flex-shrink: 0; }
+/* A standalone chip row (not inside a card) e.g. for a filter/date-range picker */
+.range-chips { display: flex; gap: 8px; padding: 0 20px; margin-top: 4px; }
+
+/* ------------------------------------------------------- primary button */
+/* Full-width prominent call-to-action button (e.g. "Start"). Add/remove
+   `.busy` to show a running/disabled state. */
+.primary-button {
+  margin: 6px 20px 4px 20px; height: 50px; border-radius: 15px;
+  background: linear-gradient(180deg, var(--color-green-light) 0%, var(--color-green-dark) 100%);
+  box-shadow: 0 3px 10px rgba(52,199,89,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer; user-select: none; transition: transform 0.08s, background 0.15s;
+}
+.primary-button.busy {
+  background: linear-gradient(180deg, #3CC46B 0%, #2FA84F 100%);
+  cursor: default;
+}
+.primary-button:active:not(.busy) { transform: scale(0.99); }
+.primary-button .label { font-size: 16px; font-weight: 600; color: #FFFFFF; }
+
+/* -------------------------------------------------------- settings rows */
+/* A grouped-list row: colored badge, title, expand chevron, edit pencil,
+   iOS-style toggle switch, optional expandable detail text below. Put a
+   sequence of `.row` (+ optional `.desc`) elements inside a `.card`. */
+.row {
+  display: flex; align-items: center; height: 48px; padding: 0 14px; gap: 10px;
+  border-bottom: 0.5px solid var(--color-separator); cursor: pointer;
+}
+.row:last-child { border-bottom: none; }
+.badge {
+  width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: white;
+}
+.row-name { flex-grow: 1; font-size: 14px; color: var(--color-label); font-weight: 500; }
+.chev { flex-shrink: 0; opacity: 0.5; transition: transform 0.15s; }
+.chev.expanded { transform: rotate(90deg); }
+.pencil { flex-shrink: 0; opacity: 0.55; font-size: 13px; cursor: pointer; }
+.desc {
+  padding: 0 14px 12px 50px; font-size: 12px; line-height: 1.4;
+  color: var(--color-secondary-label); display: none;
+}
+.desc.expanded { display: block; }
+
+/* iOS-style pill toggle switch. Toggle the `.on` class; the knob position
+   and track color follow automatically. */
+.toggle {
+  width: 44px; height: 26px; border-radius: 13px; background: var(--color-toggle-off);
+  position: relative; flex-shrink: 0; cursor: pointer; transition: background 0.15s;
+}
+.toggle.on { background: var(--color-green); }
+.toggle .knob {
+  width: 22px; height: 22px; border-radius: 50%; background: white;
+  position: absolute; top: 2px; left: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  transition: left 0.15s;
+}
+.toggle.on .knob { left: 20px; }
+
+/* ---------------------------------------------------------- data rows */
+/* A compact list row for results/log tables: label, 0+ colored tag pills,
+   spacer, trailing timestamp/meta text. */
+.results-row {
+  display: flex; align-items: center; min-height: 30px; padding: 5px 14px; gap: 10px;
+  border-bottom: 0.5px solid var(--color-separator); flex-wrap: wrap;
+}
+.results-row:last-child { border-bottom: none; }
+.sym { font-size: 13px; font-weight: 600; color: var(--color-label); min-width: 46px; }
+.tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+.tag.c0 { background: rgba(255,149,0,0.14); color: #B36200; }
+.tag.c1 { background: rgba(175,82,222,0.14); color: #7A2BA8; }
+.tag.c2 { background: rgba(0,122,255,0.12); color: #0B5FCC; }
+.tag.c3 { background: rgba(50,173,230,0.14); color: #1A7FA6; }
+.tag.c4 { background: rgba(255,45,85,0.12); color: #C11C42; }
+.tag.c5 { background: rgba(88,86,214,0.12); color: #4744B5; }
+.spacer { flex-grow: 1; }
+.ts { font-size: 11px; color: var(--color-tertiary-label); }

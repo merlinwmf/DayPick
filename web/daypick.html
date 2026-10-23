@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DayPick</title>
+<link rel="stylesheet" href="ios16.css">
+<style>
+  .inline-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .inline-chips.disabled { opacity: 0.4; pointer-events: none; }
+  .cap-row { display: flex; align-items: center; height: 48px; padding: 0 14px; gap: 10px; }
+  .cap-name { font-size: 14px; color: var(--color-label); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="title">DayPick</div>
+    <div class="subtitle">Custom watchlist stock picker</div>
+  </div>
+
+  <div class="section-label">Stock Pool</div>
+  <div class="card"><div class="chips" id="poolChips"></div></div>
+  <div class="caption" id="poolCount">0 lists selected — 0 unique stocks</div>
+
+  <div class="status" id="status">Connecting to OpenD...</div>
+
+  <div class="primary-button" id="startBtn">
+    <svg class="playIcon" width="12" height="14" viewBox="0 0 14 16" fill="white"><path d="M0 0L14 8L0 16V0Z"/></svg>
+    <span class="label" id="startLabel">Start Pick</span>
+  </div>
+
+  <div class="section-label" style="margin-top: 14px;">Market Cap Filter</div>
+  <div class="card">
+    <div class="cap-row">
+      <div class="cap-name">Market Cap</div>
+      <div class="inline-chips" id="capChips"></div>
+      <div class="spacer"></div>
+      <div class="toggle" id="capToggle"><div class="knob"></div></div>
+    </div>
+  </div>
+  <div class="caption dim">Logic 3 always requires &gt;$10B regardless of this setting.</div>
+
+  <div class="section-label" style="margin-top: 14px;">Pick Logic (OR-combined)</div>
+  <div class="card" id="logicsCard"></div>
+
+  <div class="section-label" style="margin-top: 14px;">Logs</div>
+  <div class="range-chips" id="rangeChips"></div>
+  <div class="card" style="margin-top: 8px;" id="resultsCard"></div>
+</div>
+
+<script>
+const TAG_COLORS = {};  // logic name -> css class, assigned as we see them
+const COLOR_CLASSES = ['c0','c1','c2','c3','c4','c5'];
+function colorFor(logicId) {
+  if (!(logicId in TAG_COLORS)) {
+    TAG_COLORS[logicId] = COLOR_CLASSES[Object.keys(TAG_COLORS).length % COLOR_CLASSES.length];
+  }
+  return TAG_COLORS[logicId];
+}
+
+let logics = [];
+let selectedGroups = new Set();
+let allGroups = [];
+let logRange = 'today';
+let marketCapEnabled = true;
+let marketCapThreshold = 10e9;
+let marketCapPresets = [1e9, 10e9, 100e9];
+
+// ---------------------------------------------------------- pool chips
+function renderPoolChips() {
+  const el = document.getElementById('poolChips');
+  el.innerHTML = '';
+  allGroups.forEach(name => {
+    const on = selectedGroups.has(name);
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (on ? ' selected' : '');
+    chip.innerHTML = (on ? '<svg width="10" height="8" viewBox="0 0 12 10" fill="none"><path d="M1 5L4.5 8.5L11 1.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '') + name;
+    chip.onclick = () => {
+      on ? selectedGroups.delete(name) : selectedGroups.add(name);
+      renderPoolChips();
+      pywebview.api.toggle_pool(name);
+    };
+    el.appendChild(chip);
+  });
+}
+
+// ---------------------------------------------------------- market cap filter
+function fmtCap(v) {
+  return v >= 1e12 ? `$${v / 1e12}T` : `$${v / 1e9}B`;
+}
+function renderCapChips() {
+  const el = document.getElementById('capChips');
+  el.innerHTML = '';
+  marketCapPresets.forEach(v => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (v === marketCapThreshold ? ' selected' : '');
+    chip.textContent = fmtCap(v);
+    chip.onclick = () => {
+      marketCapThreshold = v;
+      renderCapChips();
+      pywebview.api.set_market_cap_threshold(v);
+    };
+    el.appendChild(chip);
+  });
+  el.classList.toggle('disabled', !marketCapEnabled);
+}
+function renderCapToggle() {
+  document.getElementById('capToggle').classList.toggle('on', marketCapEnabled);
+  renderCapChips();
+}
+document.getElementById('capToggle').onclick = () => {
+  marketCapEnabled = !marketCapEnabled;
+  renderCapToggle();
+  pywebview.api.set_market_cap_enabled(marketCapEnabled);
+};
+
+// ---------------------------------------------------------- logic rows
+function renderLogics() {
+  const card = document.getElementById('logicsCard');
+  card.innerHTML = '';
+  logics.forEach((l, idx) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const capBadge = l.market_cap_override
+      ? `<div class="tag c2" title="Always requires &gt;${fmtCap(l.market_cap_override)}, ignores the Market Cap Filter">${fmtCap(l.market_cap_override)} fixed</div>`
+      : '';
+    row.innerHTML = `
+      <div class="badge" style="background:${['#FF9500','#AF52DE','#007AFF','#32ADE6','#FF2D55','#5856D6'][idx % 6]}">${idx + 1}</div>
+      <div class="row-name">${l.name}</div>
+      ${capBadge}
+      <svg class="chev${l.expanded ? ' expanded' : ''}" width="9" height="9" viewBox="0 0 12 12" fill="none">
+        <path d="M2 1L9 6L2 11" stroke="#C7C7CC" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="pencil">✏️</span>
+      <div class="toggle${l.enabled ? ' on' : ''}"><div class="knob"></div></div>
+    `;
+    const expandZone = () => { l.expanded = !l.expanded; renderLogics(); };
+    row.querySelector('.row-name').onclick = expandZone;
+    row.querySelector('.chev').onclick = expandZone;
+    row.querySelector('.pencil').onclick = (e) => {
+      e.stopPropagation();
+      const newName = prompt('Logic name:', l.name);
+      if (newName && newName.trim()) {
+        l.name = newName.trim();
+        renderLogics();
+        pywebview.api.rename_logic(l.id, l.name);
+      }
+    };
+    row.querySelector('.toggle').onclick = (e) => {
+      e.stopPropagation();
+      l.enabled = !l.enabled;
+      renderLogics();
+      pywebview.api.toggle_logic(l.id);
+    };
+    card.appendChild(row);
+    if (l.expanded) {
+      const desc = document.createElement('div');
+      desc.className = 'desc expanded';
+      desc.textContent = l.description;
+      card.appendChild(desc);
+    }
+  });
+}
+
+// ---------------------------------------------------------- log range
+function renderRangeChips() {
+  const el = document.getElementById('rangeChips');
+  el.innerHTML = '';
+  [['today', 'Today'], ['yesterday', 'Yesterday'], ['3days', 'Last 3 Days']].forEach(([key, label]) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (key === logRange ? ' selected' : '');
+    chip.style.height = '28px';
+    chip.textContent = label;
+    chip.onclick = () => { logRange = key; renderRangeChips(); pywebview.api.set_log_range(key); };
+    el.appendChild(chip);
+  });
+}
+
+// ---------------------------------------------------------- start button
+document.getElementById('startBtn').onclick = () => pywebview.api.start_pick();
+
+// ============================================================
+// Functions Python calls via evaluate_js() to push live updates
+// ============================================================
+function appStatus(text) {
+  document.getElementById('status').textContent = text;
+}
+function appGroups(groups) {
+  allGroups = groups;
+  renderPoolChips();
+}
+function appPoolCount(nLists, nStocks) {
+  document.getElementById('poolCount').textContent = `${nLists} list(s) selected — ${nStocks} unique stock(s)`;
+}
+function appRunning(running) {
+  const btn = document.getElementById('startBtn');
+  btn.classList.toggle('busy', running);
+  document.getElementById('startLabel').textContent = running ? '●  Running...' : 'Start Pick';
+  btn.querySelector('.playIcon').style.display = running ? 'none' : '';
+}
+function appResults(events) {
+  const card = document.getElementById('resultsCard');
+  card.innerHTML = '';
+  if (!events.length) {
+    card.innerHTML = '<div class="empty-note">No picks logged for this range.</div>';
+    return;
+  }
+  events.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'results-row';
+    const tags = e.logics.split(',').filter(Boolean).map(name =>
+      `<div class="tag ${colorFor(name)}">${name}</div>`).join('');
+    row.innerHTML = `<div class="sym">${e.symbol}</div>${tags}<div class="spacer"></div><div class="ts">${e.time}</div>`;
+    card.appendChild(row);
+  });
+}
+
+// ---------------------------------------------------------- boot
+// window.pywebview may already exist by the time this script runs (a race
+// that's more likely when the page loads from bundled resources, e.g. in
+// the packaged exe, than from disk in dev mode) - in that case the
+// 'pywebviewready' event already fired and a plain addEventListener
+// would wait forever. Check for the already-ready case first.
+async function boot() {
+  const state = await pywebview.api.get_initial_state();
+  logics = state.logics;
+  selectedGroups = new Set(state.selected_groups);
+  logRange = state.log_range;
+  marketCapEnabled = state.market_cap_enabled;
+  marketCapThreshold = state.market_cap_threshold;
+  marketCapPresets = state.market_cap_presets;
+  renderLogics();
+  renderRangeChips();
+  renderCapToggle();
+  appResults([]);
+  pywebview.api.start_app();
+}
+if (window.pywebview && window.pywebview.api) {
+  boot();
+} else {
+  window.addEventListener('pywebviewready', boot);
+}
+</script>
+</body>
+</html>
